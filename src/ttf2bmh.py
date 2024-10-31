@@ -164,9 +164,11 @@ def main():
                     yoffset = font_yoffsets[height_idx]
 
                 # Filename Definitions
-                filename = Font + '_' + str(height) # General Filename
-                h_filename = os.path.join(output_bmh_folder, filename + '.h') # Outputfile for font
-                png_filename = os.path.join(output_bmh_folder, filename + '.png') # Outputfile for font
+                fontname = Font.replace(' ', '_').lower() + '_' + str(height)
+
+                h_filename = os.path.join(output_bmh_folder, fontname + '.h') # Outputfile for font
+                c_filename = os.path.join(output_bmh_folder, fontname + '.c') # Outputfile for font
+                png_filename = os.path.join(output_bmh_folder, fontname + '.png') # Outputfile for font
 
                 # define PILfont
                 size = [width, height]
@@ -177,8 +179,8 @@ def main():
                 #font_height = int(height*1.1)
                 PILfont = ImageFont.truetype(ttf_absolute_filename, font_height)
 
-                # Open BMH file and start writing
-                outfile = write_bmh_head(h_filename, Font, height)
+                # Open BMC file and start writing
+                outfile = write_bmc_head(c_filename, h_filename, fontname)
 
                 for char in chars:
                     # Create pixel image with PIL
@@ -188,7 +190,7 @@ def main():
 
                     # Calculate byte arrays and write to file
 
-                    if(variable_width):
+                    if (variable_width):
                         [zero_col_cnt_left, zero_col_cnt_right] = calculate_char_width(image, width, height)
                         char_width = width - zero_col_cnt_right - zero_col_cnt_left
                         x_offset = zero_col_cnt_left
@@ -199,18 +201,21 @@ def main():
                     width_array.append(str(char_width))
                     dot_array = get_pixel_byte(image, height, char_width, x_offset)
 
-                    write_bmh_char(outfile, char, dot_array, progmem)
+                    write_bmc_char(outfile, char, dot_array, progmem)
                     if(print_ascii):
                         print(char + ":")
                         print_char(image, height, char_width, x_offset)
 
-                # write tail and close bmh file
-                write_bmh_tail(outfile, width_array, character_line)
+                # write tail and close bmc file
+                write_bmc_tail(outfile, width_array, character_line, fontname, font_height)
+
+                write_bmh_file(h_filename, fontname)
+
                 # write Image picture with all characters
                 write_pic_file(character_line, PILfont, width, height, png_filename)
                 if(len(TTF_FILES)<20):
-                    print(filename + '.h written')
-                logfile_append(logfile, filename)
+                    print(fontname + '.h written')
+                logfile_append(logfile, fontname)
 
         #print('-------------------------------------------------------------------------')
         print("TTF2BMH Finished")
@@ -265,8 +270,8 @@ def get_ttf_filename (Target_Font, ttf_searchfolder):
         tt = ttLib.TTFont(ttf_absolute_filename)
         fm = tt['name'].names[4].string
         Font = fm.decode('ascii', errors ='replace')
-
         Font = re.sub('\x00','',Font)
+
         if(Target_Font == Font):
             target_ttf_file =  ttf_file['filename']
             target_ttf_dir  =  ttf_file['dir']
@@ -357,25 +362,35 @@ def search_ttf_folder(ttf_searchfolder):
             TTF_FILES.append(ttf_file)
     return TTF_FILES
 
-#---------------------------------------------------------------------------------------
-def write_bmh_head(h_filename, Font, height):
-# Process BMF array and create header file to be used with any C compiler
+def write_bmh_file(h_filename, fontname):
     outfile = open(h_filename,"w+")
-
     outfile.write("// Header File for SSD1306 characters\n")
     outfile.write("// Generated with TTF2BMH\n")
-    outfile.write("// Font " +  Font + "\n")
+    outfile.write("// Font " +  fontname + "\n\n")
+    outfile.write("extern const struct font_t " + fontname + ";\n")
+    outfile.close()
 
-    #print('Font: ' + Font + ', Size:' + str(height))
-    outfile.write("// Font Size: " + str(height) + "\n")
+#---------------------------------------------------------------------------------------
+def write_bmc_head(c_filename, h_filename, fontname):
+    # Process BMF array and create c file to be used with any C compiler
+    outfile = open(c_filename,"w+")
+
+    outfile.write("// Font File for SSD1306 characters\n")
+    outfile.write("// Generated with TTF2BMH\n")
+    outfile.write("// Font " +  fontname + "\n\n")
+
+    outfile.write("#include \"font.h\"\n\n")
+    outfile.write("#include \"" + os.path.basename(h_filename) + "\"\n\n")
+
+
     return outfile
 
 #---------------------------------------------------------------------------------------
 #
-def write_bmh_char(outfile, char, dot_array, progmem):
+def write_bmc_char(outfile, char, dot_array, progmem):
     # C Type declaration strings
     # Adjust for different MCU/compilers
-    C_declaration_0 = 'const char bitmap_'
+    C_declaration_0 = 'static const char bitmap_'
     if(progmem):
         C_declaration_1 = '[] PROGMEM = {'
     else:
@@ -384,27 +399,41 @@ def write_bmh_char(outfile, char, dot_array, progmem):
     C_mem_array = (','.join(dot_array))
     C_printline = C_declaration_0 + str(ord(char)) + C_declaration_1 + C_mem_array +'};\n'
 
-    #print(C_printline)
+    outfile.write("// \'" + char + "\'\n")
     outfile.write(C_printline)
 
 #---------------------------------------------------------------------------------------
-# Write BMH Tail and close file
-def write_bmh_tail(outfile, width_array, character_line):
+# Write BMC Tail and close file
+def write_bmc_tail(outfile, width_array, character_line, fontname, font_height):
+    outfile.write('\n')
+
     C_addr_array = []
-    C_char_width_0 = 'const char char_width[] = {'
+    C_char_width_0 = 'static const char char_width[] = {'
     C_char_width_1 = (','.join(width_array))
-    C_char_width_2 = '};\n'
+    C_char_width_2 = '};\n\n'
 
     outfile.write(C_char_width_0 + C_char_width_1 + C_char_width_2)
 
     for char in character_line:
-        C_addr_array.append('&bitmap_' + str(ord(char)))
+        C_addr_array.append('bitmap_' + str(ord(char)))
 
-    C_addr  = (','.join(C_addr_array))
-    C_address_declaration_1 = "const char* char_addr[] = {"
-    C_address_declaration_2 = "};\n"
+    C_addr  = (', '.join(C_addr_array))
+    C_address_declaration_1 = "static const char* char_addr[] = {"
+    C_address_declaration_2 = "};\n\n"
 
     outfile.write(C_address_declaration_1 + C_addr + C_address_declaration_2)
+    outfile.write('static const char char_values[] = {')
+    for char in character_line.encode('cp1250'):
+        outfile.write(str(char) + ',')
+    outfile.write('};\n\n')
+
+    outfile.write('const struct font_t ' + fontname + ' = {\n')
+    outfile.write('    ' + str(font_height) + ',\n')
+    outfile.write('    char_values,\n')
+    outfile.write('    char_addr,\n')
+    outfile.write('    char_width\n')
+    outfile.write('};\n')
+
 
     outfile.close()
 
