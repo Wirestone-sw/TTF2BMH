@@ -53,7 +53,7 @@ def main():
     parser.add_argument('-C','--characters', type=str, help='String of characters to be processed (if no character_filename passed in)')
     parser.add_argument('--ascii', action='store_true', help='Convert for all ascii characters (overrides -c and -C)')
     parser.add_argument('--font', default = '', help='Define Font Name to be processed. Name should include modifier like Bold or Italic. If none is given, all fonts in folder will be processed.')
-    parser.add_argument('-s','--fontsize', default='32', choices=['8','24', '32', '40', '48', '56', '64', 'all'], help='Fontsize (Fontheight) in pixels. Default: 32')
+    parser.add_argument('-s','--fontsize', default='32', choices=['8','16','24', '32', '40', '48', '56', '64', 'all'], help='Fontsize (Fontheight) in pixels. Default: 32')
     parser.add_argument('-O','--offset', type=int, help='Y Offset for characters (Default is based off font size)')
     parser.add_argument('--variable_width', default=False, action='store_true', help='Variable width of characters.')
     parser.add_argument('-fh','--font_height', help='Define fontsize of rendered font within the defined pixel image boundary')
@@ -102,8 +102,8 @@ def main():
 
 
         # Definition of Font Heights and offsets
-        font_heights = [8, 24, 32, 40, 48, 56, 64]
-        font_yoffsets = [0, 6, 5, 7, 8, 9, 10]
+        font_heights = [8, 12, 16, 20, 24, 32, 40, 48, 56, 64]
+        font_yoffsets = [0, 0, 0, 0, 6, 5, 7, 8, 9, 10]
 
         if(args.fontsize == 'all'):
             height_indices = range(len(font_heights))
@@ -422,6 +422,7 @@ def write_bmc_tail(outfile, width_array, character_line, fontname, font_height):
     C_address_declaration_2 = "};\n\n"
 
     outfile.write(C_address_declaration_1 + C_addr + C_address_declaration_2)
+    outfile.write('// char_values for \'' + character_line  + '\'\n')
     outfile.write('static const char char_values[] = {')
     for char in character_line.encode('cp1250'):
         outfile.write(str(char) + ',')
