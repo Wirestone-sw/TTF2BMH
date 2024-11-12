@@ -367,6 +367,9 @@ def write_bmh_file(h_filename, fontname):
     outfile.write("// Header File for SSD1306 characters\n")
     outfile.write("// Generated with TTF2BMH\n")
     outfile.write("// Font " +  fontname + "\n\n")
+
+    outfile.write("#include <stdint.h>\n\n")
+
     outfile.write("extern const struct font_t " + fontname + ";\n")
     outfile.close()
 
@@ -379,9 +382,8 @@ def write_bmc_head(c_filename, h_filename, fontname):
     outfile.write("// Generated with TTF2BMH\n")
     outfile.write("// Font " +  fontname + "\n\n")
 
-    outfile.write("#include \"font.h\"\n\n")
+    outfile.write("#include \"font.h\"\n")
     outfile.write("#include \"" + os.path.basename(h_filename) + "\"\n\n")
-
 
     return outfile
 
@@ -390,7 +392,7 @@ def write_bmc_head(c_filename, h_filename, fontname):
 def write_bmc_char(outfile, char, dot_array, progmem):
     # C Type declaration strings
     # Adjust for different MCU/compilers
-    C_declaration_0 = 'static const char bitmap_'
+    C_declaration_0 = 'static const uint8_t bitmap_'
     if(progmem):
         C_declaration_1 = '[] PROGMEM = {'
     else:
@@ -408,7 +410,7 @@ def write_bmc_tail(outfile, width_array, character_line, fontname, font_height):
     outfile.write('\n')
 
     C_addr_array = []
-    C_char_width_0 = 'static const char char_width[] = {'
+    C_char_width_0 = 'static const uint8_t char_width[] = {'
     C_char_width_1 = (','.join(width_array))
     C_char_width_2 = '};\n\n'
 
@@ -418,12 +420,12 @@ def write_bmc_tail(outfile, width_array, character_line, fontname, font_height):
         C_addr_array.append('bitmap_' + str(ord(char)))
 
     C_addr  = (', '.join(C_addr_array))
-    C_address_declaration_1 = "static const char* char_addr[] = {"
+    C_address_declaration_1 = "static const uint8_t *char_addr[] = {"
     C_address_declaration_2 = "};\n\n"
 
     outfile.write(C_address_declaration_1 + C_addr + C_address_declaration_2)
     outfile.write('// char_values for \'' + character_line  + '\'\n')
-    outfile.write('static const char char_values[] = {')
+    outfile.write('static const uint8_t char_values[] = {')
     for char in character_line.encode('cp1250'):
         outfile.write(str(char) + ',')
     outfile.write('};\n\n')
