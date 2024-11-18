@@ -207,7 +207,7 @@ def main():
                         print_char(image, height, char_width, x_offset)
 
                 # write tail and close bmc file
-                write_bmc_tail(outfile, width_array, character_line, fontname, font_height)
+                write_bmc_tail(outfile, width_array, character_line, fontname, font_heights[height_idx])
 
                 write_bmh_file(h_filename, fontname)
 
